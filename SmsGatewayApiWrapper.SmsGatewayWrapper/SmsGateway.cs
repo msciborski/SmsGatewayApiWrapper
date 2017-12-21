@@ -56,6 +56,28 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             }
             return devices;
         }
+        public IEnumerable<Device> GetDevices () {
+            IEnumerable<Device> devices = null;
+
+            var task = Task.Run(async () => {
+                devices = await GetDevicesAsync();
+            });
+
+            while (!task.IsCompleted) {
+                System.Threading.Thread.Yield();
+            }
+
+            if (task.IsFaulted) {
+                throw task.Exception;
+            }
+
+            if (task.IsCanceled) {
+                throw new Exception("Timeout obtaining device information.");
+            }
+
+            return devices;
+
+        }
 
         private void BaseConfigurationHttpClient ( HttpClient client ) {
             client.BaseAddress = new Uri(_baseUrl);
