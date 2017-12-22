@@ -48,6 +48,7 @@
     <Compile Include="SmsGateway.cs" />
     <Compile Include="Utilities\Converters\DateTimeConverter.cs" />
     <Compile Include="Utilities\Exceptions\AuthenticationException.cs" />
+    <Compile Include="Utilities\Exceptions\DeviceException.cs" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

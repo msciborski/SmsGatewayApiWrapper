@@ -79,6 +79,56 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
         }
 
+        public async Task<Device> GetDeviceAsync(int id) {
+            Device device = null;
+            try {
+                using(var client = new HttpClient()) {
+                    BaseConfigurationHttpClient(client);
+                    var response = await client.GetAsync(String.Format("devices/view/{0}?email={1}&password={2}", 
+                        id, Email, Password));
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    if (response.IsSuccessStatusCode) {
+                        JObject jObject = JObject.Parse(responseContent);
+                        device = jObject["result"].ToObject<Device>();
+                    } else {
+                        JObject jObject = JObject.Parse(responseContent);
+                        if(jObject["errors"]["login"] != null) {
+                            throw new AuthenticationException((string)jObject["errors"]["login"]);
+                        }
+                        if(jObject["errors"]["id"] != null) {
+                            throw new DeviceException((string) jObject["errors"]["id"]);
+                        }
+                    }
+
+                }
+            }catch(HttpRequestException e) {
+                Console.WriteLine(e.ToString());
+            }catch(JsonException e) {
+                Console.WriteLine(e.ToString());
+            }
+            return device;
+        }
+        
+        public Device GetDevice(int id) {
+            Device device = null;
+
+            var task = Task.Run(async () => {
+                device = await GetDeviceAsync(id);
+            });
+
+            while (!task.IsCompleted) {
+                System.Threading.Thread.Yield();
+            }
+
+            if (task.IsFaulted) {
+                throw task.Exception;
+            }else if (task.IsCanceled) {
+                throw new Exception("Timeout.");
+            }
+            return device;
+        }
+
         private void BaseConfigurationHttpClient ( HttpClient client ) {
             client.BaseAddress = new Uri(_baseUrl);
             client.DefaultRequestHeaders.Clear();
