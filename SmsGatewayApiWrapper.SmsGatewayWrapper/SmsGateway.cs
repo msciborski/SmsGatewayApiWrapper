@@ -9,11 +9,15 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SmsGatewayApiWrapper.SmsGatewayWrapper.Models;
+using SmsGatewayApiWrapper.SmsGatewayWrapper.Utilities.Converters;
 using SmsGatewayApiWrapper.SmsGatewayWrapper.Utilities.Exceptions;
 
 namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
     public class SmsGateway {
         private readonly string _baseUrl = "http://smsgateway.me/api/v3/";
+        private readonly string _devicesUrl = "devices?email={0}&password={1}&page={2}";
+        private readonly string _deviceUrl = "devices/view/{0}?email={1}&password={2}";
+        private readonly string _messagesUrl = "messages?email={0}&password={1}";
         /// <summary>
         /// Contains email for your account on site
         /// </summary>
@@ -24,24 +28,25 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// </summary>
         public string Password { get; private set; }
 
-        public SmsGateway ( string email, string password ) {
+        public SmsGateway(string email, string password) {
             Email = email;
             Password = password;
         }
 
-        public async Task<IEnumerable<Device>> GetDevicesAsync () {
-            IEnumerable<Device> devices = null;
+        public async Task<DeviceList<Device>> GetDevicesAsync(int page = 1) {
+            DeviceList<Device> deviceList = null;
             try {
                 using (var client = new HttpClient()) {
                     BaseConfigurationHttpClient(client);
                     var response =
-                        await client.GetAsync(String.Format("devices?email={0}&password={1}", Email, Password));
+                        await client.GetAsync(String.Format(_devicesUrl, Email, Password, page));
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode) {
                         JObject jObject = JObject.Parse(responseContent);
-                        var devicesJson = jObject["result"]["data"];
-                        devices = devicesJson.ToObject<List<Device>>();
+                        JsonSerializer serializer = new JsonSerializer();
+                        serializer.Converters.Add(new DeviceListConverter());
+                        deviceList = jObject.ToObject<DeviceList<Device>>(serializer);
                     } else {
                         JObject jObject = JObject.Parse(responseContent);
                         var error = jObject["errors"].Select(t => (string) t).FirstOrDefault();
@@ -54,13 +59,13 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             } catch (JsonReaderException e) {
                 Console.WriteLine(e.ToString());
             }
-            return devices;
+            return deviceList;
         }
-        public IEnumerable<Device> GetDevices () {
-            IEnumerable<Device> devices = null;
+        public DeviceList<Device> GetDevices() {
+            DeviceList<Device> deviceList = null;
 
             var task = Task.Run(async () => {
-                devices = await GetDevicesAsync();
+                deviceList = await GetDevicesAsync();
             });
 
             while (!task.IsCompleted) {
@@ -75,16 +80,16 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                 throw new Exception("Timeout obtaining device information.");
             }
 
-            return devices;
+            return deviceList;
 
         }
 
         public async Task<Device> GetDeviceAsync(int id) {
             Device device = null;
             try {
-                using(var client = new HttpClient()) {
+                using (var client = new HttpClient()) {
                     BaseConfigurationHttpClient(client);
-                    var response = await client.GetAsync(String.Format("devices/view/{0}?email={1}&password={2}", 
+                    var response = await client.GetAsync(String.Format(_deviceUrl,
                         id, Email, Password));
                     var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -93,23 +98,23 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                         device = jObject["result"].ToObject<Device>();
                     } else {
                         JObject jObject = JObject.Parse(responseContent);
-                        if(jObject["errors"]["login"] != null) {
-                            throw new AuthenticationException((string)jObject["errors"]["login"]);
+                        if (jObject["errors"]["login"] != null) {
+                            throw new AuthenticationException((string) jObject["errors"]["login"]);
                         }
-                        if(jObject["errors"]["id"] != null) {
+                        if (jObject["errors"]["id"] != null) {
                             throw new DeviceException((string) jObject["errors"]["id"]);
                         }
                     }
 
                 }
-            }catch(HttpRequestException e) {
+            } catch (HttpRequestException e) {
                 Console.WriteLine(e.ToString());
-            }catch(JsonException e) {
+            } catch (JsonException e) {
                 Console.WriteLine(e.ToString());
             }
             return device;
         }
-        
+
         public Device GetDevice(int id) {
             Device device = null;
 
@@ -123,13 +128,53 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
             if (task.IsFaulted) {
                 throw task.Exception;
-            }else if (task.IsCanceled) {
+            } else if (task.IsCanceled) {
                 throw new Exception("Timeout.");
             }
             return device;
         }
 
-        private void BaseConfigurationHttpClient ( HttpClient client ) {
+        //public async Task<IEnumerable<Message>> GetMessagesAsync() {
+        //    IEnumerable<Message> messages = null;
+        //    try {
+        //        using (var client = new HttpClient()) {
+        //            BaseConfigurationHttpClient(client);
+        //            var response = await client.GetAsync(String.Format(_messagesUrl, Email, Password));
+        //            var responseContent = await response.Content.ReadAsStringAsync();
+        //            if (response.IsSuccessStatusCode) {
+        //                //Console.WriteLine(responseContent);
+
+        //            }
+        //        }
+        //    } catch (HttpRequestException e) {
+        //        Console.WriteLine(e.ToString());
+        //    } catch (JsonException e) {
+        //        Console.WriteLine(e.ToString());
+        //    }
+        //    return messages;
+        //}
+
+        //public IEnumerable<Message> GetMessages() {
+        //    IEnumerable<Message> messages = null;
+
+        //    var task = Task.Run(async () => {
+        //        messages = await GetMessagesAsync();
+        //    });
+
+        //    while (!task.IsCompleted) {
+        //        System.Threading.Thread.Yield();
+        //    }
+
+        //    if (task.IsFaulted) {
+        //        throw task.Exception;
+        //    } else if (task.IsCanceled) {
+        //        throw new Exception("Timeout.");
+        //    }
+
+        //    return messages;
+        //}
+
+        private void BaseConfigurationHttpClient(HttpClient client) {
             client.BaseAddress = new Uri(_baseUrl);
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
