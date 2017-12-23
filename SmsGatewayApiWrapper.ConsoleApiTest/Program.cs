@@ -9,17 +9,32 @@ using SmsGatewayApiWrapper.SmsGatewayWrapper.Models;
 
 namespace SmsGatewayApiWrapper.ConsoleApiTest {
     class Program {
-        static async Task Main(string[] args) {
-            var email = ConfigurationManager.AppSettings["email"];
-            var password = ConfigurationManager.AppSettings["password"];
-            SmsGateway gateway = new SmsGateway(email, password);
+        private static SmsGateway smsGateway;
+        private static string email = ConfigurationManager.AppSettings["email"];
+        private static string password = ConfigurationManager.AppSettings["password"];
 
-            var paginingDevices = await gateway.GetDevicesAsync();
+        static async Task Main(string[] args) {
+            smsGateway = new SmsGateway(email, password);
+            await GetMessages();
+            Console.ReadLine();
+        }
+        static async Task GetDevicesTest() {
+            var paginingDevices = await smsGateway.GetDevicesAsync();
 
             foreach (var device in paginingDevices) {
                 Console.WriteLine(device.Id);
             }
-            Console.ReadLine();
+        }
+        static async Task GetMessages() {
+            try {
+                var paginingMesages = await smsGateway.GetMessagesAsync();
+                foreach (var paginingMesage in paginingMesages) {
+                    Console.WriteLine("Tresc -> {0}\nOd ->{1}", paginingMesage.MessageContent, paginingMesage.Contact.Number);
+                }
+            }catch(Exception e) {
+                Console.WriteLine(e.ToString());
+            }
+
         }
     }
 }

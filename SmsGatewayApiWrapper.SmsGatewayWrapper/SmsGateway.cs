@@ -134,45 +134,58 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return device;
         }
 
-        //public async Task<IEnumerable<Message>> GetMessagesAsync() {
-        //    IEnumerable<Message> messages = null;
-        //    try {
-        //        using (var client = new HttpClient()) {
-        //            BaseConfigurationHttpClient(client);
-        //            var response = await client.GetAsync(String.Format(_messagesUrl, Email, Password));
-        //            var responseContent = await response.Content.ReadAsStringAsync();
-        //            if (response.IsSuccessStatusCode) {
-        //                //Console.WriteLine(responseContent);
+        /*
+         * Documentation don't respond to the result of query. In documentation /messages should return json with messages
+         * and pagining information. In real, just return messages
+         */
+        public async Task<IEnumerable<Message>> GetMessagesAsync() {
+            IEnumerable<Message> messages = null;
+            try {
+                using (var client = new HttpClient()) {
+                    BaseConfigurationHttpClient(client);
+                    var response = await client.GetAsync(String.Format(_messagesUrl, Email, Password));
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    if (response.IsSuccessStatusCode) {
+                        JObject jObject = JObject.Parse(responseContent);
+                        messages = jObject["result"].ToObject<IList<Message>>();
+                        //JObject jObject = JObject.Parse(responseContent);
+                        //JsonSerializer serializer = new JsonSerializer();
+                        //serializer.Converters.Add(new PaginingListConverter<Message>());
+                        //messages = jObject.ToObject<PaginingList<Message>>(serializer);
+                        Console.WriteLine(responseContent);
+                    } else {
+                        JObject jObject = JObject.Parse(responseContent);
+                        var error = jObject["errors"].Select(t => (string) t).FirstOrDefault();
+                        throw new AuthenticationException(error);
+                    }
+                }
+            } catch (HttpRequestException e) {
+                Console.WriteLine(e.ToString());
+            } catch (JsonException e) {
+                Console.WriteLine(e.ToString());
+            }
+            return messages;
+        }
 
-        //            }
-        //        }
-        //    } catch (HttpRequestException e) {
-        //        Console.WriteLine(e.ToString());
-        //    } catch (JsonException e) {
-        //        Console.WriteLine(e.ToString());
-        //    }
-        //    return messages;
-        //}
+        public IEnumerable<Message> GetMessages() {
+            IEnumerable<Message> messages = null;
 
-        //public IEnumerable<Message> GetMessages() {
-        //    IEnumerable<Message> messages = null;
+            var task = Task.Run(async () => {
+                messages = await GetMessagesAsync();
+            });
 
-        //    var task = Task.Run(async () => {
-        //        messages = await GetMessagesAsync();
-        //    });
+            while (!task.IsCompleted) {
+                System.Threading.Thread.Yield();
+            }
 
-        //    while (!task.IsCompleted) {
-        //        System.Threading.Thread.Yield();
-        //    }
+            if (task.IsFaulted) {
+                throw task.Exception;
+            } else if (task.IsCanceled) {
+                throw new Exception("Timeout.");
+            }
 
-        //    if (task.IsFaulted) {
-        //        throw task.Exception;
-        //    } else if (task.IsCanceled) {
-        //        throw new Exception("Timeout.");
-        //    }
-
-        //    return messages;
-        //}
+            return messages;
+        }
 
         private void BaseConfigurationHttpClient(HttpClient client) {
             client.BaseAddress = new Uri(_baseUrl);
