@@ -13,18 +13,47 @@ using SmsGatewayApiWrapper.SmsGatewayWrapper.Utilities.Converters;
 using SmsGatewayApiWrapper.SmsGatewayWrapper.Utilities.Exceptions;
 
 namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
+    /// <summary>
+    /// <c>SmsGateway</c> is a class, which wraps SmsGateway API and provides you flexible and simple methods for using this API.
+    /// </summary>
     public class SmsGateway {
+        /// <summary>
+        /// Base url for API
+        /// </summary>
         private readonly string _baseUrl = "http://smsgateway.me/api/v3/";
+        /// <summary>
+        /// Url for fetching devices
+        /// </summary>
         private readonly string _devicesUrl = "devices?email={0}&password={1}&page={2}";
+        /// <summary>
+        /// Url for fetching single device
+        /// </summary>
         private readonly string _deviceUrl = "devices/view/{0}?email={1}&password={2}";
+        /// <summary>
+        /// Url for fetching whole messages.
+        /// </summary>
         private readonly string _messagesUrl = "messages?email={0}&password={1}";
+        /// <summary>
+        /// Url for fething 
+        /// </summary>
         private readonly string _messageUrl = "messages/view/{0}?email={1}&password={2}";
+        /// <summary>
+        /// Url for sending messages
+        /// </summary>
         private readonly string _sendMessageUrl =
             "messages/send?email={0}&password={1}&device={2}&number={3}&message={4}";
 
-
+        /// <summary>
+        /// Field, which holds TimeStamp for refreshing last seen device
+        /// </summary>
         private static readonly TimeSpan lastSeenDeviceDuration = new TimeSpan(0,10,0);
+        /// <summary>
+        /// Fields for storing last seen device
+        /// </summary>
         private Device storedLastSeenDevice = null;
+        /// <summary>
+        /// DateTime of device, which was fetched(marked as last seen)
+        /// </summary>
         private DateTime storedLastSeenDeviceTime = DateTime.MinValue;
 
         /// <summary>
@@ -37,11 +66,35 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// </summary>
         public string Password { get; private set; }
 
+        /// <summary>
+        ///     Initializing a new instance of <c>SmsGateway</c>
+        /// </summary>
+        /// <example>
+        ///     <code>
+        ///         SmsGateway smsGateway = new SmsGateway("test@test.com", "testPassword");
+        ///         Console.WriteLine(smsGateway.Email);
+        ///     </code>
+        /// </example>
+        /// <param name="email">Email address for your account on https://smsgateway.me </param>
+        /// <param name="password">Passwor for your account on https://smsgateway.me </param>
         public SmsGateway(string email, string password) {
             Email = email;
             Password = password;
         }
 
+        /// <summary>
+        /// Get all devices from API and select last seen device and return it. Method looking for newest device every 10 minutes. 
+        /// This is async implementation.
+        /// </summary>
+        /// <exception cref="DeviceException">
+        ///     If there is no avaiable device
+        /// </exception>
+        /// <exception cref="AuthenticationException">
+        ///     If you provide wrong credentials.
+        /// </exception>
+        /// <returns><see cref="Device"/>
+        ///     Return Task.
+        /// </returns>
         public async Task<Device> GetLastSeenDeviceAsync() {
             if((DateTime.Now - storedLastSeenDeviceTime) < lastSeenDeviceDuration) {
                 return storedLastSeenDevice;
@@ -58,10 +111,22 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                 storedLastSeenDeviceTime = DateTime.Now;;
             }catch(AuthenticationException e) {
                 Console.WriteLine(e.ToString());
+                throw;
             }
 
             return storedLastSeenDevice;
         }
+
+        /// <summary>
+        /// Exactly like <paramref cref="GetLastSeenDeviceAsync"/>, but synchronous.
+        /// </summary>
+        /// <exception cref="DeviceException">
+        ///     If there is no avaiable device
+        /// </exception>
+        /// <exception cref="AuthenticationException">
+        ///     If you provide wrong credentials.
+        /// </exception>
+        /// <returns><paramref cref="Device"/></returns>
         public Device GetLastSeenDevice() {
             var task = Task.Run(async () => {
                 storedLastSeenDevice = await GetLastSeenDeviceAsync();
@@ -79,6 +144,16 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return storedLastSeenDevice;
         }
 
+        /// <summary>
+        /// Method <c>GetDevicesAsync</c> returns list of devices with pagination informations. It's asynchronous method.
+        /// </summary>
+        /// <param name="page"><see cref="int"> representing page. Default 1.</see>/></param>
+        /// <exception cref="AuthenticationException">
+        ///     If you provide wrong credentials for your account.
+        /// </exception>
+        /// <returns>
+        ///     <see cref="Task{PaginingList{Device}}"/> 
+        /// </returns>
         public async Task<PaginingList<Device>> GetDevicesAsync(int page = 1) {
             PaginingList<Device> devices = null;
             try {
@@ -107,6 +182,14 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             }
             return devices;
         }
+
+        /// <summary>
+        /// Eactly like <see cref="GetDevicesAsync"/>, but synchronous.
+        /// </summary>
+        /// <exception cref="AuthenticationException">
+        ///     If you provide wrong credentials for your account.
+        /// </exception>
+        /// <returns><see cref="PaginingList{Device}"/></returns>
         public PaginingList<Device> GetDevices() {
             PaginingList<Device> devices = null;
 
@@ -129,7 +212,17 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return devices;
 
         }
-
+        /// <summary>
+        /// Method <c>GetDeviceAsync</c> returns device for provided id. It's asynchronous method.
+        /// </summary>
+        /// <param name="id"><see cref="int"/> Id of device.</param>
+        /// <exception cref="AuthenticationException">
+        /// It's thrown when you provided wrong credentials.
+        /// </exception>
+        /// <exception cref="DeviceException">
+        /// It's thrown when you provided ID of device, which dosen't exist.
+        /// </exception>
+        /// <returns><see cref="Task{Device}"/></returns>
         public async Task<Device> GetDeviceAsync(int id) {
             Device device = null;
             try {
@@ -160,7 +253,17 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             }
             return device;
         }
-
+        /// <summary>
+        /// Exactly like <see cref="GetDeviceAsync"/>, but synchronously.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <exception cref="AuthenticationException">
+        /// It's thrown when you provided wrong credentials.
+        /// </exception>
+        /// <exception cref="DeviceException">
+        /// It's thrown when you provided ID of device, which dosen't exist.
+        /// </exception>
+        /// <returns><see cref="Device"/></returns>
         public Device GetDevice(int id) {
             Device device = null;
 
@@ -184,6 +287,16 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
          * Documentation don't respond to the result of query. In documentation /messages should return json with messages
          * and pagining information. In real, just return messages
          */
+        /// <summary>
+        /// Return list of messages. 
+        /// API's documentation don't respond to the result of query. In documentation /messages should return json with messages
+        /// and pagining information. In real, just return messages.
+        /// So, I can't provide you information about paginatio.
+        /// </summary>
+        /// <exception cref="AuthenticationException">
+        ///     When you provide wrong credentials.
+        /// </exception>
+        /// <returns><see cref="IEnumerable{Messages}"/></returns>
         public async Task<IEnumerable<Message>> GetMessagesAsync() {
             IEnumerable<Message> messages = null;
             try {
@@ -212,7 +325,13 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             }
             return messages;
         }
-
+        /// <summary>
+        /// Exactyly, like <see cref="GetMessagesAsync"/>
+        /// </summary>
+        /// <exception cref="AuthenticationException">
+        ///     When you provide wrong credentials.
+        /// </exception>
+        /// <returns><see cref="IEnumerable{Message}"/></returns>
         public IEnumerable<Message> GetMessages() {
             IEnumerable<Message> messages = null;
 
@@ -232,7 +351,13 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
             return messages;
         }
+        /// <summary>
+        /// Return message form provided ID. It's asynchronous method.
+        /// </summary>
+        /// <param name="id"><see cref="int"/>Message ID</param>
 
+
+        /// <returns><see cref="Message"/></returns>
         public async Task<Message> GetMessageAsync(int id) {
             Message message = null;
             try {
@@ -261,7 +386,11 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             }
             return message;
         }
-
+        /// <summary>
+        /// Exactly, like <see cref="GetMessageAsync"/>, but synchronous.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         public Message GetMessage(int id) {
             Message message = null;
 
@@ -281,7 +410,19 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
             return message;
         }
-
+        /// <summary>
+        /// <c>SendMessageAsync</c> is method used for sending message to provided number. It's using POST. It's asynchronous.
+        /// </summary>
+        /// <param name="number"><see cref="String"/> Number</param>
+        /// <param name="message"><see cref="String"/> Message to send</param>
+        /// <param name="deviceId"><see cref="String"/>Id of device(Used to send message). Default null, provided lastSeen device.</param>
+        /// <exception cref="AuthenticationException">
+        ///     Thrown when you provide wrong credentials.
+        /// </exception>
+        /// <exception cref="DeviceException">
+        ///     Thrown when you provide ID of device, which dosen't exist.
+        /// </exception>
+        /// <returns><see cref="Message"/></returns>
         public async Task<Message> SendMessageAsync(string number, string message, string deviceId = null) {
             Message sentMessage = null;
             try {
@@ -322,7 +463,13 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
             return sentMessage;
         }
-
+        /// <summary>
+        /// Exactly, like <see cref="SendMessageAsync"/>, but synchronous.
+        /// </summary>
+        /// <param name="number"></param>
+        /// <param name="message"></param>
+        /// <param name="deviceId"></param>
+        /// <returns></returns>
         public Message SendMessage(string number, string message, string deviceId) {
             Message sentMessage = null;
 
