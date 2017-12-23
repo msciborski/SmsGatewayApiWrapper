@@ -19,6 +19,8 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         private readonly string _deviceUrl = "devices/view/{0}?email={1}&password={2}";
         private readonly string _messagesUrl = "messages?email={0}&password={1}";
         private readonly string _messageUrl = "messages/view/{0}?email={1}&password={2}";
+        private readonly string _sendMessageUrl =
+            "messages/send?email={0}&password={1}&device={2}&number={3}&message={4}";
 
 
         private static readonly TimeSpan lastSeenDeviceDuration = new TimeSpan(0,10,0);
@@ -279,6 +281,67 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
             return message;
         }
+
+        public async Task<Message> SendMessageAsync(string number, string message, string deviceId = null) {
+            Message sentMessage = null;
+            try {
+                using(var client = new HttpClient()) {
+                    BaseConfigurationHttpClient(client);
+
+                    string deviceIdTemp = String.Empty;
+                    if(deviceId == null) {
+                        var device = await GetLastSeenDeviceAsync();
+                        deviceIdTemp = device.Id.ToString();
+                    } else {
+                        deviceIdTemp = deviceId;
+                    }
+
+                    var response = await client.GetAsync(String.Format(_sendMessageUrl, 
+                        Email, Password, deviceIdTemp, number, message));
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    if (response.IsSuccessStatusCode) {
+                        JObject jObject = JObject.Parse(responseContent);
+                        if(jObject["result"]["fails"].HasValues) {
+                            if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
+                                throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"]);
+                            } 
+                        } else {
+                            sentMessage = jObject["result"]["success"][0].ToObject<Message>();
+                        }
+                    }
+                }
+            }catch(HttpRequestException e) {
+                Console.WriteLine(e.ToString());
+            }catch(JsonException e) {
+                Console.WriteLine(e.ToString());
+            }catch(AuthenticationException e) {
+                Console.WriteLine(e.ToString());
+                throw;
+            }
+
+            return sentMessage;
+        }
+
+        public Message SendMessage(string number, string message, string deviceId) {
+            Message sentMessage = null;
+
+            var task = Task.Run(async () => {
+                sentMessage = await SendMessageAsync(number, message, deviceId);
+            });
+
+            while (!task.IsCompleted) {
+                System.Threading.Thread.Yield();
+            }
+
+            if (task.IsFaulted) {
+                throw task.Exception;
+            } else if (task.IsCanceled) {
+                throw new Exception("Timeout.");
+            }
+            return sentMessage;
+        }
+
 
         private void BaseConfigurationHttpClient(HttpClient client) {
             client.BaseAddress = new Uri(_baseUrl);

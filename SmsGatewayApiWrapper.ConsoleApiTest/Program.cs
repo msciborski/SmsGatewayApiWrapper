@@ -14,9 +14,11 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
         private static string password = ConfigurationManager.AppSettings["password"];
 
         static async Task Main(string[] args) {
+            var wrongEmail = "test@gmail.com";
             smsGateway = new SmsGateway(email, password);
             //await GetMessages();
-            await GetMessage();
+            //await GetMessage();
+            await SendMessage();
             Console.ReadLine();
         }
         static async Task GetDevicesTest() {
@@ -39,6 +41,13 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
         static async Task GetMessage() {
             var message = await smsGateway.GetMessageAsync(51696153);
             Console.WriteLine("Text: {0}\n, Contact: {1}", message.MessageContent, message.Contact.Name);
+        }
+        static async Task SendMessage() {
+            string number = "48515054859";
+            string messageText = "Test, test";
+            var message = await smsGateway.SendMessageAsync(number, messageText);
+            Console.WriteLine(message.MessageContent
+                );
         }
     }
 }
