@@ -9,7 +9,7 @@ using Newtonsoft.Json.Linq;
 using SmsGatewayApiWrapper.SmsGatewayWrapper.Models;
 
 namespace SmsGatewayApiWrapper.SmsGatewayWrapper.Utilities.Converters {
-    public class DeviceListConverter : JsonConverter {
+    public class PaginingListConverter<T> : JsonConverter where T : class {
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) {
             throw new NotImplementedException();
         }
@@ -19,21 +19,21 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper.Utilities.Converters {
                 JObject item = JObject.Load(reader);
 
                 if(item["result"]["data"] != null) {
-                    var devices = item["result"]["data"].ToObject<IList<Device>>();
+                    var devices = item["result"]["data"].ToObject<IList<T>>();
 
                     int total = item["result"]["total"].Value<int>();
                     int perPage = item["result"]["per_page"].Value<int>();
                     int currentPage = item["result"]["current_page"].Value<int>();
                     int lastPage = item["result"]["last_page"].Value<int>();
 
-                    return new DeviceList<Device>(devices, new PaginingInformation(total, perPage, currentPage, lastPage));
+                    return new PaginingList<T>(devices, new PaginingInformation(total, perPage, currentPage, lastPage));
                 }
             }
             throw new Exception("There is no [\"resut\"][\"data\"]");
         }
 
         public override bool CanConvert(Type objectType) {
-            return typeof(DeviceList<Device>).GetTypeInfo().IsAssignableFrom(objectType.GetTypeInfo());
+            return typeof(PaginingList<T>).GetTypeInfo().IsAssignableFrom(objectType.GetTypeInfo());
         }
     }
 }

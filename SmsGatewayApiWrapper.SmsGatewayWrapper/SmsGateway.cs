@@ -33,8 +33,8 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             Password = password;
         }
 
-        public async Task<DeviceList<Device>> GetDevicesAsync(int page = 1) {
-            DeviceList<Device> deviceList = null;
+        public async Task<PaginingList<Device>> GetDevicesAsync(int page = 1) {
+            PaginingList<Device> devices = null;
             try {
                 using (var client = new HttpClient()) {
                     BaseConfigurationHttpClient(client);
@@ -45,8 +45,8 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                     if (response.IsSuccessStatusCode) {
                         JObject jObject = JObject.Parse(responseContent);
                         JsonSerializer serializer = new JsonSerializer();
-                        serializer.Converters.Add(new DeviceListConverter());
-                        deviceList = jObject.ToObject<DeviceList<Device>>(serializer);
+                        serializer.Converters.Add(new PaginingListConverter<Device>());
+                        devices = jObject.ToObject<PaginingList<Device>>(serializer);
                     } else {
                         JObject jObject = JObject.Parse(responseContent);
                         var error = jObject["errors"].Select(t => (string) t).FirstOrDefault();
@@ -59,13 +59,13 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             } catch (JsonReaderException e) {
                 Console.WriteLine(e.ToString());
             }
-            return deviceList;
+            return devices;
         }
-        public DeviceList<Device> GetDevices() {
-            DeviceList<Device> deviceList = null;
+        public PaginingList<Device> GetDevices() {
+            PaginingList<Device> devices = null;
 
             var task = Task.Run(async () => {
-                deviceList = await GetDevicesAsync();
+                devices = await GetDevicesAsync();
             });
 
             while (!task.IsCompleted) {
@@ -80,7 +80,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                 throw new Exception("Timeout obtaining device information.");
             }
 
-            return deviceList;
+            return devices;
 
         }
 
