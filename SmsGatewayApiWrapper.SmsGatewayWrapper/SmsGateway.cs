@@ -18,6 +18,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         private readonly string _devicesUrl = "devices?email={0}&password={1}&page={2}";
         private readonly string _deviceUrl = "devices/view/{0}?email={1}&password={2}";
         private readonly string _messagesUrl = "messages?email={0}&password={1}";
+        private readonly string _messageUrl = "messages/view/{0}?email={1}&password={2}";
         /// <summary>
         /// Contains email for your account on site
         /// </summary>
@@ -185,6 +186,55 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             }
 
             return messages;
+        }
+
+        public async Task<Message> GetMessageAsync(int id) {
+            Message message = null;
+            try {
+                using(var client = new HttpClient()) {
+                    BaseConfigurationHttpClient(client);
+                    var response = await client.GetAsync(String.Format(_messageUrl, id, Email, Password));
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    if (response.IsSuccessStatusCode) {
+                        JObject jObject = JObject.Parse(responseContent);
+                        message = jObject["result"].ToObject<Message>();
+                    } else {
+                        JObject jObject = JObject.Parse(responseContent);
+                        if (jObject["errors"]["login"] != null) {
+                            throw new AuthenticationException((string) jObject["errors"]["login"]);
+                        }
+                        if (jObject["errors"]["id"] != null) {
+                            throw new DeviceException((string) jObject["errors"]["id"]);
+                        }
+                    }
+                }
+            }catch(HttpRequestException e) {
+                Console.WriteLine(e.ToString());
+            }catch(JsonException e) {
+                Console.WriteLine(e.ToString());
+            }
+            return message;
+        }
+
+        public Message GetMessage(int id) {
+            Message message = null;
+
+            var task = Task.Run(async () => {
+                message = await GetMessageAsync(id);
+            });
+
+            while (!task.IsCompleted) {
+                System.Threading.Thread.Yield();
+            }
+
+            if (task.IsFaulted) {
+                throw task.Exception;
+            } else if (task.IsCanceled) {
+                throw new Exception("Timeout.");
+            }
+
+            return message;
         }
 
         private void BaseConfigurationHttpClient(HttpClient client) {
