@@ -19,6 +19,12 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         private readonly string _deviceUrl = "devices/view/{0}?email={1}&password={2}";
         private readonly string _messagesUrl = "messages?email={0}&password={1}";
         private readonly string _messageUrl = "messages/view/{0}?email={1}&password={2}";
+
+
+        private static readonly TimeSpan lastSeenDeviceDuration = new TimeSpan(0,10,0);
+        private Device storedLastSeenDevice = null;
+        private DateTime storedLastSeenDeviceTime = DateTime.MinValue;
+
         /// <summary>
         /// Contains email for your account on site
         /// </summary>
@@ -32,6 +38,43 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         public SmsGateway(string email, string password) {
             Email = email;
             Password = password;
+        }
+
+        public async Task<Device> GetLastSeenDeviceAsync() {
+            if((DateTime.Now - storedLastSeenDeviceTime) < lastSeenDeviceDuration) {
+                return storedLastSeenDevice;
+            }
+
+            try {
+                var devices = await GetDevicesAsync();
+                var lastSeenDevice = devices.OrderBy(d => d.LastSeen).FirstOrDefault();
+
+                if(lastSeenDevice == null) {
+                    throw new DeviceException("No device is avaiable.");
+                }
+                storedLastSeenDevice = lastSeenDevice;
+                storedLastSeenDeviceTime = DateTime.Now;;
+            }catch(AuthenticationException e) {
+                Console.WriteLine(e.ToString());
+            }
+
+            return storedLastSeenDevice;
+        }
+        public Device GetLastSeenDevice() {
+            var task = Task.Run(async () => {
+                storedLastSeenDevice = await GetLastSeenDeviceAsync();
+            });
+
+            while (!task.IsCompleted) {
+                System.Threading.Thread.Yield();
+            }
+
+            if (task.IsFaulted) {
+                throw task.Exception;
+            }else if (task.IsCanceled) {
+                throw new Exception("Timeout.");
+            }
+            return storedLastSeenDevice;
         }
 
         public async Task<PaginingList<Device>> GetDevicesAsync(int page = 1) {
