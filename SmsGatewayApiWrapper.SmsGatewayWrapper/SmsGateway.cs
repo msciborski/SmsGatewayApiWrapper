@@ -46,7 +46,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// <summary>
         /// Field, which holds TimeStamp for refreshing last seen device
         /// </summary>
-        private static readonly TimeSpan lastSeenDeviceDuration = new TimeSpan(0,10,0);
+        private static readonly TimeSpan lastSeenDeviceDuration = new TimeSpan(0, 10, 0);
         /// <summary>
         /// Fields for storing last seen device
         /// </summary>
@@ -96,7 +96,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         ///     Return Task.
         /// </returns>
         public async Task<Device> GetLastSeenDeviceAsync() {
-            if((DateTime.Now - storedLastSeenDeviceTime) < lastSeenDeviceDuration) {
+            if (( DateTime.Now - storedLastSeenDeviceTime ) < lastSeenDeviceDuration) {
                 return storedLastSeenDevice;
             }
 
@@ -104,12 +104,12 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                 var devices = await GetDevicesAsync();
                 var lastSeenDevice = devices.OrderBy(d => d.LastSeen).FirstOrDefault();
 
-                if(lastSeenDevice == null) {
+                if (lastSeenDevice == null) {
                     throw new DeviceException("No device is avaiable.");
                 }
                 storedLastSeenDevice = lastSeenDevice;
-                storedLastSeenDeviceTime = DateTime.Now;;
-            }catch(AuthenticationException e) {
+                storedLastSeenDeviceTime = DateTime.Now; ;
+            } catch (AuthenticationException e) {
                 Console.WriteLine(e.ToString());
                 throw;
             }
@@ -138,7 +138,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
             if (task.IsFaulted) {
                 throw task.Exception;
-            }else if (task.IsCanceled) {
+            } else if (task.IsCanceled) {
                 throw new Exception("Timeout.");
             }
             return storedLastSeenDevice;
@@ -159,8 +159,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             try {
                 using (var client = new HttpClient()) {
                     BaseConfigurationHttpClient(client);
-                    var response =
-                        await client.GetAsync(String.Format(_devicesUrl, Email, Password, page));
+                    var response = await MakeRequestAsync(client, String.Format(_devicesUrl, Email, Password, page), "get");
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode) {
@@ -178,6 +177,8 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                 Console.WriteLine("Problem with connection.");
                 Console.WriteLine(e.ToString());
             } catch (JsonReaderException e) {
+                Console.WriteLine(e.ToString());
+            } catch (ArgumentException e) {
                 Console.WriteLine(e.ToString());
             }
             return devices;
@@ -228,8 +229,8 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             try {
                 using (var client = new HttpClient()) {
                     BaseConfigurationHttpClient(client);
-                    var response = await client.GetAsync(String.Format(_deviceUrl,
-                        id, Email, Password));
+                    var response =
+                        await MakeRequestAsync(client, String.Format(_deviceUrl, Email, Password, id), "get");
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode) {
@@ -249,6 +250,8 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             } catch (HttpRequestException e) {
                 Console.WriteLine(e.ToString());
             } catch (JsonException e) {
+                Console.WriteLine(e.ToString());
+            } catch(ArgumentException e) {
                 Console.WriteLine(e.ToString());
             }
             return device;
@@ -302,7 +305,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             try {
                 using (var client = new HttpClient()) {
                     BaseConfigurationHttpClient(client);
-                    var response = await client.GetAsync(String.Format(_messagesUrl, Email, Password));
+                    var response = await MakeRequestAsync(client, String.Format(_messagesUrl, Email, Password), "get");
                     var responseContent = await response.Content.ReadAsStringAsync();
                     if (response.IsSuccessStatusCode) {
                         JObject jObject = JObject.Parse(responseContent);
@@ -321,6 +324,8 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             } catch (HttpRequestException e) {
                 Console.WriteLine(e.ToString());
             } catch (JsonException e) {
+                Console.WriteLine(e.ToString());
+            } catch (ArgumentException e) {
                 Console.WriteLine(e.ToString());
             }
             return messages;
@@ -361,9 +366,10 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         public async Task<Message> GetMessageAsync(int id) {
             Message message = null;
             try {
-                using(var client = new HttpClient()) {
+                using (var client = new HttpClient()) {
                     BaseConfigurationHttpClient(client);
-                    var response = await client.GetAsync(String.Format(_messageUrl, id, Email, Password));
+                    var response =
+                        await MakeRequestAsync(client, String.Format(_messageUrl, Email, Password, id), "get");
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode) {
@@ -379,9 +385,11 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                         }
                     }
                 }
-            }catch(HttpRequestException e) {
+            } catch (HttpRequestException e) {
                 Console.WriteLine(e.ToString());
-            }catch(JsonException e) {
+            } catch (JsonException e) {
+                Console.WriteLine(e.ToString());
+            } catch (ArgumentException e) {
                 Console.WriteLine(e.ToString());
             }
             return message;
@@ -426,37 +434,41 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         public async Task<Message> SendMessageAsync(string number, string message, string deviceId = null) {
             Message sentMessage = null;
             try {
-                using(var client = new HttpClient()) {
+                using (var client = new HttpClient()) {
                     BaseConfigurationHttpClient(client);
 
                     string deviceIdTemp = String.Empty;
-                    if(deviceId == null) {
+                    if (deviceId == null) {
                         var device = await GetLastSeenDeviceAsync();
                         deviceIdTemp = device.Id.ToString();
                     } else {
                         deviceIdTemp = deviceId;
                     }
 
-                    var response = await client.GetAsync(String.Format(_sendMessageUrl, 
-                        Email, Password, deviceIdTemp, number, message));
+                    var response = await MakeRequestAsync(client,
+                        String.Format(_sendMessageUrl, Email, Password, deviceIdTemp, number, message), "post");
                     var responseContent = await response.Content.ReadAsStringAsync();
+
+                    Console.WriteLine(responseContent);
 
                     if (response.IsSuccessStatusCode) {
                         JObject jObject = JObject.Parse(responseContent);
-                        if(jObject["result"]["fails"].HasValues) {
+                        if (jObject["result"]["fails"].HasValues) {
                             if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
                                 throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"]);
-                            } 
+                            }
                         } else {
                             sentMessage = jObject["result"]["success"][0].ToObject<Message>();
                         }
                     }
                 }
-            }catch(HttpRequestException e) {
+            } catch (HttpRequestException e) {
                 Console.WriteLine(e.ToString());
-            }catch(JsonException e) {
+            } catch (JsonException e) {
                 Console.WriteLine(e.ToString());
-            }catch(AuthenticationException e) {
+            } catch(ArgumentException e) {
+                Console.WriteLine(e.ToString());
+            } catch (AuthenticationException e) {
                 Console.WriteLine(e.ToString());
                 throw;
             }
@@ -470,7 +482,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// <param name="message"></param>
         /// <param name="deviceId"></param>
         /// <returns></returns>
-        public Message SendMessage(string number, string message, string deviceId) {
+        public Message SendMessage(string number, string message, string deviceId = null) {
             Message sentMessage = null;
 
             var task = Task.Run(async () => {
@@ -489,6 +501,24 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return sentMessage;
         }
 
+        public Task<Message> SendMessageToContact(int contactId, string message, string deviceId = null) {
+            return null;
+        }
+
+        private async Task<HttpResponseMessage> MakeRequestAsync(HttpClient client, string url, string httpMethod) {
+            if (httpMethod.ToLowerInvariant() == "get") {
+                var response = await client.GetAsync(url);
+                return response;
+
+            } else if (httpMethod.ToLowerInvariant() == "post") {
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
+                var response = await client.SendAsync(request);
+                return response;
+            }
+
+            throw new ArgumentException("Provided wrong httpMethod.");
+
+        }
 
         private void BaseConfigurationHttpClient(HttpClient client) {
             client.BaseAddress = new Uri(_baseUrl);

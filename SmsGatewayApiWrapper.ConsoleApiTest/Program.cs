@@ -34,7 +34,7 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
                 foreach (var paginingMesage in paginingMesages) {
                     Console.WriteLine("Tresc -> {0}\nOd ->{1}", paginingMesage.MessageContent, paginingMesage.Contact.Number);
                 }
-            }catch(Exception e) {
+            } catch (Exception e) {
                 Console.WriteLine(e.ToString());
             }
         }
@@ -46,8 +46,6 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
             string number = "48515054859";
             string messageText = "Test, test";
             var message = await smsGateway.SendMessageAsync(number, messageText);
-            Console.WriteLine(message.MessageContent
-                );
         }
     }
 }
