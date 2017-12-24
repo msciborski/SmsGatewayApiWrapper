@@ -158,7 +158,6 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             PaginingList<Device> devices = null;
             try {
                 using (var client = new HttpClient()) {
-                    BaseConfigurationHttpClient(client);
                     var response = await MakeRequestAsync(client, String.Format(_devicesUrl, Email, Password, page), "get");
                     var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -228,7 +227,6 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             Device device = null;
             try {
                 using (var client = new HttpClient()) {
-                    BaseConfigurationHttpClient(client);
                     var response =
                         await MakeRequestAsync(client, String.Format(_deviceUrl, Email, Password, id), "get");
                     var responseContent = await response.Content.ReadAsStringAsync();
@@ -304,7 +302,6 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             IEnumerable<Message> messages = null;
             try {
                 using (var client = new HttpClient()) {
-                    BaseConfigurationHttpClient(client);
                     var response = await MakeRequestAsync(client, String.Format(_messagesUrl, Email, Password), "get");
                     var responseContent = await response.Content.ReadAsStringAsync();
                     if (response.IsSuccessStatusCode) {
@@ -367,7 +364,6 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             Message message = null;
             try {
                 using (var client = new HttpClient()) {
-                    BaseConfigurationHttpClient(client);
                     var response =
                         await MakeRequestAsync(client, String.Format(_messageUrl, Email, Password, id), "get");
                     var responseContent = await response.Content.ReadAsStringAsync();
@@ -435,7 +431,6 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             Message sentMessage = null;
             try {
                 using (var client = new HttpClient()) {
-                    BaseConfigurationHttpClient(client);
 
                     string deviceIdTemp = String.Empty;
                     if (deviceId == null) {
@@ -506,6 +501,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         }
 
         private async Task<HttpResponseMessage> MakeRequestAsync(HttpClient client, string url, string httpMethod) {
+            BaseConfigurationHttpClient(client);
             if (httpMethod.ToLowerInvariant() == "get") {
                 var response = await client.GetAsync(url);
                 return response;
