@@ -53,7 +53,9 @@
     <Compile Include="Utilities\Converters\DateTimeConverter.cs" />
     <Compile Include="Utilities\Converters\PaginingListConverter.cs" />
     <Compile Include="Utilities\Exceptions\AuthenticationException.cs" />
+    <Compile Include="Utilities\Exceptions\ContactException.cs" />
     <Compile Include="Utilities\Exceptions\DeviceException.cs" />
+    <Compile Include="Utilities\Exceptions\SmsGatewayException.cs" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

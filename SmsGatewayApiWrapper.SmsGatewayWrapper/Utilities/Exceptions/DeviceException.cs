@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace SmsGatewayApiWrapper.SmsGatewayWrapper.Utilities.Exceptions {
-    public class DeviceException : Exception{
+    public class DeviceException : SmsGatewayException{
 
         public DeviceException () {
             

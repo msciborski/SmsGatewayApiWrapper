@@ -43,6 +43,9 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         private readonly string _sendMessageUrl =
             "messages/send?email={0}&password={1}&device={2}&number={3}&message={4}";
 
+        private readonly string _sendMessageToContactUrl =
+            "message/send?email={0}&password={1}&device={2}&contact={3}&message={4}";
+
         /// <summary>
         /// Field, which holds TimeStamp for refreshing last seen device
         /// </summary>
@@ -496,9 +499,67 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return sentMessage;
         }
 
-        public Task<Message> SendMessageToContact(int contactId, string message, string deviceId = null) {
-            return null;
+        public async Task<Message> SendMessageToContactAsync(int contactId, string message, string deviceId = null) {
+            Message sentMessage = null;
+
+            try {
+                using (var client = new HttpClient()) {
+                    string tempDeviceId = String.Empty;
+                    if(deviceId == null) {
+                        var device = await GetLastSeenDeviceAsync();
+                        tempDeviceId = device.Id.ToString();
+                    } else {
+                        tempDeviceId = deviceId;
+                    }
+
+                    var response = await MakeRequestAsync(client,
+                        String.Format(_sendMessageToContactUrl, Email, Password, tempDeviceId, contactId, message),
+                        "post");
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    if (response.IsSuccessStatusCode) {
+                        JObject jObject = JObject.Parse(responseContent);
+                        if (jObject["result"]["fails"].HasValues) {
+                            if (jObject["result"]["fails"][0]["errors"]["device"].HasValues && jObject["result"]["fails"][0]["errors"]["contact"].HasValues) {
+                                throw new SmsGatewayException((string) jObject["result"]["fails"][0]["errors"]["device"] + "\n" + 
+                                    (string) jObject["result"]["fails"][0]["errors"]["contact"]);
+                            }else if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
+                                throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"]);
+                            }else if (jObject["result"]["fails"][0]["errors"]["contact"].HasValues) {
+                                throw new ContactException((string) jObject["result"]["fails"][0]["errors"]["contact"]);
+                            }
+                        } else {
+                            sentMessage = jObject["result"]["success"][0].ToObject<Message>();
+                        } 
+                    }
+                }
+            }catch(HttpRequestException e) {
+                Console.WriteLine(e.ToString());
+            }catch(JsonException e) {
+                Console.WriteLine(e.ToString());
+            }
+            return sentMessage;
         }
+
+        public Message SendMessageToContact(int contactId, string message, string deviceId = null) {
+            Message sentMessage = null;
+
+            var task = Task.Run(async () => {
+                sentMessage = await SendMessageToContactAsync(contactId, message, deviceId);
+            });
+
+            while (!task.IsCompleted) {
+                System.Threading.Thread.Yield();
+            }
+
+            if (task.IsFaulted) {
+                throw task.Exception;
+            }else if (task.IsCanceled) {
+                throw new Exception("Timeout.");
+            }
+
+            return sentMessage;
+        } 
 
         private async Task<HttpResponseMessage> MakeRequestAsync(HttpClient client, string url, string httpMethod) {
             BaseConfigurationHttpClient(client);

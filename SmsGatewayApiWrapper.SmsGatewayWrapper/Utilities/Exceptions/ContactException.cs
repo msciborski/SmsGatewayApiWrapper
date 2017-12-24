@@ -5,16 +5,17 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace SmsGatewayApiWrapper.SmsGatewayWrapper.Utilities.Exceptions {
-    public class AuthenticationException : SmsGatewayException {
-        public AuthenticationException () {
+    class ContactException : SmsGatewayException {
+
+        public ContactException() {
             
         }
-
-        public AuthenticationException(string message)
+        public ContactException(string message)
             : base(message) {
             
         }
-        public AuthenticationException(string message, Exception inner)
+
+        public ContactException(string message, Exception inner)
             : base(message, inner) {
             
         }
