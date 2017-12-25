@@ -18,7 +18,8 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
             smsGateway = new SmsGateway(email, password);
             //await GetMessages();
             //await GetMessage();
-            await SendMessage();
+            //await SendMessage();
+            await GetContacts();
             Console.ReadLine();
         }
         static async Task GetDevicesTest() {
@@ -46,6 +47,12 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
             string number = "48515054859";
             string messageText = "Test, test";
             var message = await smsGateway.SendMessageAsync(number, messageText);
+        }
+        static async Task GetContacts() {
+            var contacts = await smsGateway.GetContactsAsync();
+            foreach (var contact in contacts) {
+                Console.WriteLine("Id -> {0}\nName -> {1}\nNumber -> {2}\nCreated at -> {3}", contact.Id, contact.Name, contact.Number, contact.CreatedAt);
+            }
         }
     }
 }
