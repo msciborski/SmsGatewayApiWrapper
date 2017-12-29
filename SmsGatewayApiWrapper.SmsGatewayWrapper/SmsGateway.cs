@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.Remoting.Messaging;
@@ -40,12 +41,8 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// <summary>
         /// Url for sending messages
         /// </summary>
-        private readonly string _sendMessageUrl =
-            "messages/send?email={0}&password={1}&device={2}&number={3}&message={4}";
-
-        private readonly string _sendMessageToContactUrl =
-            "message/send?email={0}&password={1}&device={2}&contact={3}&message={4}";
-
+        private readonly string _sendMessageUrl = "messages/send";
+        
         private readonly string _contactsUrl = "contacts?email={0}&password={1}&page={2}";
 
         /// <summary>
@@ -444,9 +441,16 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                     } else {
                         deviceIdTemp = deviceId;
                     }
+                    string jsonContent = JsonConvert.SerializeObject(new {
+                        email = Email,
+                        password = Password,
+                        device = deviceIdTemp,
+                        number,
+                        message
+                    });
 
-                    var response = await MakeRequestAsync(client,
-                        String.Format(_sendMessageUrl, Email, Password, deviceIdTemp, number, message), "post");
+                    Console.WriteLine(jsonContent);
+                    var response = await MakeRequestAsync(client, _sendMessageUrl, "post", jsonContent);
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     Console.WriteLine(responseContent);
@@ -502,7 +506,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         }
 
 
-        public async Task<Message> SendMessageToContactAsync(int contactId, string message, string deviceId = null) {
+        public async Task<Message> SendMessageToContactAsync(string contactId, string message, string deviceId = null) {
             Message sentMessage = null;
 
             try {
@@ -514,12 +518,17 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                     } else {
                         tempDeviceId = deviceId;
                     }
-
-                    var response = await MakeRequestAsync(client,
-                        String.Format(_sendMessageToContactUrl, Email, Password, tempDeviceId, contactId, message),
-                        "post");
+                    var jsonContent = JsonConvert.SerializeObject(new {
+                        email = Email,
+                        password = Password,
+                        device = tempDeviceId,
+                        contact = contactId,
+                        message
+                    });
+                    Console.WriteLine(jsonContent);
+                    var response = await MakeRequestAsync(client, _sendMessageUrl, "post", jsonContent);
                     var responseContent = await response.Content.ReadAsStringAsync();
-
+                    Console.WriteLine(responseContent);
                     if (response.IsSuccessStatusCode) {
                         JObject jObject = JObject.Parse(responseContent);
                         if (jObject["result"]["fails"].HasValues) {
@@ -544,7 +553,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return sentMessage;
         }
 
-        public Message SendMessageToContact(int contactId, string message, string deviceId = null) {
+        public Message SendMessageToContact(string contactId, string message, string deviceId = null) {
             Message sentMessage = null;
 
             var task = Task.Run(async () => {
@@ -613,7 +622,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return contacts;
         }
 
-        private async Task<HttpResponseMessage> MakeRequestAsync(HttpClient client, string url, string httpMethod) {
+        private async Task<HttpResponseMessage> MakeRequestAsync(HttpClient client, string url, string httpMethod, string body = null) {
             BaseConfigurationHttpClient(client);
             if (httpMethod.ToLowerInvariant() == "get") {
                 var response = await client.GetAsync(url);
@@ -621,6 +630,9 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
             } else if (httpMethod.ToLowerInvariant() == "post") {
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
+                if(body != null) {
+                    request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                }
                 var response = await client.SendAsync(request);
                 return response;
             }

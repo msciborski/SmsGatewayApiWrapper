@@ -19,7 +19,8 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
             //await GetMessages();
             //await GetMessage();
             //await SendMessage();
-            await GetContacts();
+            //await GetContacts();
+            await SendMessageToContact();
             Console.ReadLine();
         }
         static async Task GetDevicesTest() {
@@ -38,6 +39,11 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
             } catch (Exception e) {
                 Console.WriteLine(e.ToString());
             }
+        }
+        static async Task SendMessageToContact() {
+            var message = "test, test";
+            var id = "10520922";
+            await smsGateway.SendMessageToContactAsync(id, message);
         }
         static async Task GetMessage() {
             var message = await smsGateway.GetMessageAsync(51696153);
