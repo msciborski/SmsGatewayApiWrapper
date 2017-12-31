@@ -42,7 +42,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// Url for sending messages
         /// </summary>
         private readonly string _sendMessageUrl = "messages/send";
-        
+
         private readonly string _contactsUrl = "contacts?email={0}&password={1}&page={2}";
 
         /// <summary>
@@ -251,7 +251,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                 Console.WriteLine(e.ToString());
             } catch (JsonException e) {
                 Console.WriteLine(e.ToString());
-            } catch(ArgumentException e) {
+            } catch (ArgumentException e) {
                 Console.WriteLine(e.ToString());
             }
             return device;
@@ -470,7 +470,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                 Console.WriteLine(e.ToString());
             } catch (JsonException e) {
                 Console.WriteLine(e.ToString());
-            } catch(ArgumentException e) {
+            } catch (ArgumentException e) {
                 Console.WriteLine(e.ToString());
             } catch (AuthenticationException e) {
                 Console.WriteLine(e.ToString());
@@ -505,6 +505,68 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return sentMessage;
         }
 
+        public async Task<IEnumerable<Message>> SendMessageToManyAsync(IEnumerable<string> numbers, string message, string deviceId = null) {
+            List<Message> messages = new List<Message>();
+            try {
+                using (var client = new HttpClient()) {
+                    string tempDeviceId = String.Empty;
+                    if (deviceId == null) {
+                        var device = await GetLastSeenDeviceAsync();
+                        tempDeviceId = device.Id.ToString();
+                    } else {
+                        tempDeviceId = deviceId;
+                    }
+
+                    var jsonContent = JsonConvert.SerializeObject(new {
+                        email = Email,
+                        password = Password,
+                        device = tempDeviceId,
+                        number = numbers,
+                        message
+                    });
+                    var response = await MakeRequestAsync(client, _sendMessageUrl, "post", jsonContent);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    if (response.IsSuccessStatusCode) {
+                        JObject jObject = JObject.Parse(responseContent);
+                        if (jObject["errors"] != null) {
+                            if (jObject["errors"]["login"].HasValues) {
+                                throw new AuthenticationException((string) jObject["errors"]["login"]);
+                            }
+                        } else if (jObject["result"]["fails"].HasValues) {
+                            if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
+                                throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"][0]);
+                            }
+                        }
+                        if (jObject["result"]["success"].Any()) {
+                            messages = jObject["result"]["success"].ToObject<List<Message>>();
+                        }
+                    }
+                }
+            } catch (HttpRequestException e) {
+                Console.WriteLine(e.ToString());
+            } catch (JsonException e) {
+                Console.WriteLine(e.ToString());
+            }
+            return messages;
+        }
+        public IEnumerable<Message> SendMessageToMany(IEnumerable<string> numbers, string message, string deviceId = null) {
+            IEnumerable<Message> messages = null;
+            var task = Task.Run(async () => {
+                messages = await SendMessageToManyAsync(numbers, message, deviceId);
+            });
+
+            while (!task.IsCompleted) {
+                System.Threading.Thread.Yield();
+            }
+
+            if (task.IsFaulted) {
+                throw task.Exception;
+            } else if (task.IsCanceled) {
+                throw new Exception("Timeout");
+            }
+            return messages;
+        }
+
 
         public async Task<Message> SendMessageToContactAsync(string contactId, string message, string deviceId = null) {
             Message sentMessage = null;
@@ -512,7 +574,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             try {
                 using (var client = new HttpClient()) {
                     string tempDeviceId = String.Empty;
-                    if(deviceId == null) {
+                    if (deviceId == null) {
                         var device = await GetLastSeenDeviceAsync();
                         tempDeviceId = device.Id.ToString();
                     } else {
@@ -533,21 +595,21 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                         JObject jObject = JObject.Parse(responseContent);
                         if (jObject["result"]["fails"].HasValues) {
                             if (jObject["result"]["fails"][0]["errors"]["device"].HasValues && jObject["result"]["fails"][0]["errors"]["contact"].HasValues) {
-                                throw new SmsGatewayException((string) jObject["result"]["fails"][0]["errors"]["device"] + "\n" + 
+                                throw new SmsGatewayException((string) jObject["result"]["fails"][0]["errors"]["device"] + "\n" +
                                     (string) jObject["result"]["fails"][0]["errors"]["contact"]);
-                            }else if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
+                            } else if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
                                 throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"]);
-                            }else if (jObject["result"]["fails"][0]["errors"]["contact"].HasValues) {
+                            } else if (jObject["result"]["fails"][0]["errors"]["contact"].HasValues) {
                                 throw new ContactException((string) jObject["result"]["fails"][0]["errors"]["contact"]);
                             }
                         } else {
                             sentMessage = jObject["result"]["success"][0].ToObject<Message>();
-                        } 
+                        }
                     }
                 }
-            }catch(HttpRequestException e) {
+            } catch (HttpRequestException e) {
                 Console.WriteLine(e.ToString());
-            }catch(JsonException e) {
+            } catch (JsonException e) {
                 Console.WriteLine(e.ToString());
             }
             return sentMessage;
@@ -566,17 +628,17 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
             if (task.IsFaulted) {
                 throw task.Exception;
-            }else if (task.IsCanceled) {
+            } else if (task.IsCanceled) {
                 throw new Exception("Timeout.");
             }
 
             return sentMessage;
         }
-        
+
         public async Task<PaginingList<Contact>> GetContactsAsync(int page = 1) {
             PaginingList<Contact> contacts = null;
             try {
-                using(var client = new HttpClient()) {
+                using (var client = new HttpClient()) {
                     var response = await MakeRequestAsync(client, String.Format(_contactsUrl, Email, Password, page),
                         "get");
                     var responseContent = await response.Content.ReadAsStringAsync();
@@ -593,9 +655,9 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                         throw new AuthenticationException(error);
                     }
                 }
-            }catch(HttpRequestException e) {
+            } catch (HttpRequestException e) {
                 Console.WriteLine(e.ToString());
-            }catch(JsonException e) {
+            } catch (JsonException e) {
                 Console.WriteLine(e.ToString());
             }
             return contacts;
@@ -630,7 +692,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
             } else if (httpMethod.ToLowerInvariant() == "post") {
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
-                if(body != null) {
+                if (body != null) {
                     request.Content = new StringContent(body, Encoding.UTF8, "application/json");
                 }
                 var response = await client.SendAsync(request);

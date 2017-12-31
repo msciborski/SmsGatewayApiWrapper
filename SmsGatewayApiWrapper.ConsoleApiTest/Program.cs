@@ -12,7 +12,7 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
         private static SmsGateway smsGateway;
         private static string email = ConfigurationManager.AppSettings["email"];
         private static string password = ConfigurationManager.AppSettings["password"];
-
+        private static string invalidEmail = "test@test.com";
         static async Task Main(string[] args) {
             var wrongEmail = "test@gmail.com";
             smsGateway = new SmsGateway(email, password);
@@ -20,7 +20,8 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
             //await GetMessage();
             //await SendMessage();
             //await GetContacts();
-            await SendMessageToContact();
+            //await SendMessageToContact();
+            await SendMessageToManyNumbers();
             Console.ReadLine();
         }
         static async Task GetDevicesTest() {
@@ -45,6 +46,15 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
             var id = "10520922";
             await smsGateway.SendMessageToContactAsync(id, message);
         }
+        static async Task SendMessageToManyNumbers() {
+            var message = "test, test";
+            string[] numbers = new[] {"780273188", "515054859"};
+            var messages = await smsGateway.SendMessageToMany(numbers, message, "0");
+
+            foreach (var message1 in messages) {
+                Console.WriteLine(message1.Id);
+            }
+        }
         static async Task GetMessage() {
             var message = await smsGateway.GetMessageAsync(51696153);
             Console.WriteLine("Text: {0}\n, Contact: {1}", message.MessageContent, message.Contact.Name);
@@ -52,7 +62,11 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
         static async Task SendMessage() {
             string number = "48515054859";
             string messageText = "Test, test";
-            var message = await smsGateway.SendMessageAsync(number, messageText);
+            try {
+                var message = await smsGateway.SendMessageAsync(number, messageText,"000000");
+            } catch (Exception e) {
+                Console.WriteLine(e.ToString());
+            }
         }
         static async Task GetContacts() {
             var contacts = await smsGateway.GetContactsAsync();
