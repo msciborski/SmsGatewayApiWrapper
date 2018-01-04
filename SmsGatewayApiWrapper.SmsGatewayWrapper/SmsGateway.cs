@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -18,6 +19,15 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
     /// <c>SmsGateway</c> is a class, which wraps SmsGateway API and provides you flexible and simple methods for using this API.
     /// </summary>
     public class SmsGateway {
+        public enum OperationType {
+            GET,
+            POST
+        }
+        public enum MessageType {
+            ToNumber,
+            ToContact
+        }
+
         /// <summary>
         /// Base url for API
         /// </summary>
@@ -160,7 +170,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             PaginingList<Device> devices = null;
             try {
                 using (var client = new HttpClient()) {
-                    var response = await MakeRequestAsync(client, String.Format(_devicesUrl, Email, Password, page), "get");
+                    var response = await MakeRequestAsync(client, String.Format(_devicesUrl, Email, Password, page), OperationType.GET);
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode) {
@@ -230,7 +240,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             try {
                 using (var client = new HttpClient()) {
                     var response =
-                        await MakeRequestAsync(client, String.Format(_deviceUrl, Email, Password, id), "get");
+                        await MakeRequestAsync(client, String.Format(_deviceUrl, Email, Password, id), OperationType.GET);
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode) {
@@ -304,7 +314,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             IEnumerable<Message> messages = null;
             try {
                 using (var client = new HttpClient()) {
-                    var response = await MakeRequestAsync(client, String.Format(_messagesUrl, Email, Password), "get");
+                    var response = await MakeRequestAsync(client, String.Format(_messagesUrl, Email, Password), OperationType.GET);
                     var responseContent = await response.Content.ReadAsStringAsync();
                     if (response.IsSuccessStatusCode) {
                         JObject jObject = JObject.Parse(responseContent);
@@ -367,7 +377,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             try {
                 using (var client = new HttpClient()) {
                     var response =
-                        await MakeRequestAsync(client, String.Format(_messageUrl, Email, Password, id), "get");
+                        await MakeRequestAsync(client, String.Format(_messageUrl, Email, Password, id), OperationType.GET);
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode) {
@@ -430,54 +440,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// </exception>
         /// <returns><see cref="Message"/></returns>
         public async Task<Message> SendMessageAsync(string number, string message, string deviceId = null) {
-            Message sentMessage = null;
-            try {
-                using (var client = new HttpClient()) {
-
-                    string deviceIdTemp = String.Empty;
-                    if (deviceId == null) {
-                        var device = await GetLastSeenDeviceAsync();
-                        deviceIdTemp = device.Id.ToString();
-                    } else {
-                        deviceIdTemp = deviceId;
-                    }
-                    string jsonContent = JsonConvert.SerializeObject(new {
-                        email = Email,
-                        password = Password,
-                        device = deviceIdTemp,
-                        number,
-                        message
-                    });
-
-                    Console.WriteLine(jsonContent);
-                    var response = await MakeRequestAsync(client, _sendMessageUrl, "post", jsonContent);
-                    var responseContent = await response.Content.ReadAsStringAsync();
-
-                    Console.WriteLine(responseContent);
-
-                    if (response.IsSuccessStatusCode) {
-                        JObject jObject = JObject.Parse(responseContent);
-                        if (jObject["result"]["fails"].HasValues) {
-                            if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
-                                throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"]);
-                            }
-                        } else {
-                            sentMessage = jObject["result"]["success"][0].ToObject<Message>();
-                        }
-                    }
-                }
-            } catch (HttpRequestException e) {
-                Console.WriteLine(e.ToString());
-            } catch (JsonException e) {
-                Console.WriteLine(e.ToString());
-            } catch (ArgumentException e) {
-                Console.WriteLine(e.ToString());
-            } catch (AuthenticationException e) {
-                Console.WriteLine(e.ToString());
-                throw;
-            }
-
-            return sentMessage;
+            return await SendMessageAsync(message, number, MessageType.ToNumber, deviceId);
         }
         /// <summary>
         /// Exactly, like <see cref="SendMessageAsync"/>, but synchronous.
@@ -506,48 +469,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         }
 
         public async Task<IEnumerable<Message>> SendMessageToManyAsync(IEnumerable<string> numbers, string message, string deviceId = null) {
-            List<Message> messages = new List<Message>();
-            try {
-                using (var client = new HttpClient()) {
-                    string tempDeviceId = String.Empty;
-                    if (deviceId == null) {
-                        var device = await GetLastSeenDeviceAsync();
-                        tempDeviceId = device.Id.ToString();
-                    } else {
-                        tempDeviceId = deviceId;
-                    }
-
-                    var jsonContent = JsonConvert.SerializeObject(new {
-                        email = Email,
-                        password = Password,
-                        device = tempDeviceId,
-                        number = numbers,
-                        message
-                    });
-                    var response = await MakeRequestAsync(client, _sendMessageUrl, "post", jsonContent);
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    if (response.IsSuccessStatusCode) {
-                        JObject jObject = JObject.Parse(responseContent);
-                        if (jObject["errors"] != null) {
-                            if (jObject["errors"]["login"].HasValues) {
-                                throw new AuthenticationException((string) jObject["errors"]["login"]);
-                            }
-                        } else if (jObject["result"]["fails"].HasValues) {
-                            if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
-                                throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"][0]);
-                            }
-                        }
-                        if (jObject["result"]["success"].Any()) {
-                            messages = jObject["result"]["success"].ToObject<List<Message>>();
-                        }
-                    }
-                }
-            } catch (HttpRequestException e) {
-                Console.WriteLine(e.ToString());
-            } catch (JsonException e) {
-                Console.WriteLine(e.ToString());
-            }
-            return messages;
+            return await SendMessageAsync(message, numbers, MessageType.ToNumber, deviceId);
         }
         public IEnumerable<Message> SendMessageToMany(IEnumerable<string> numbers, string message, string deviceId = null) {
             IEnumerable<Message> messages = null;
@@ -569,50 +491,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
 
         public async Task<Message> SendMessageToContactAsync(string contactId, string message, string deviceId = null) {
-            Message sentMessage = null;
-
-            try {
-                using (var client = new HttpClient()) {
-                    string tempDeviceId = String.Empty;
-                    if (deviceId == null) {
-                        var device = await GetLastSeenDeviceAsync();
-                        tempDeviceId = device.Id.ToString();
-                    } else {
-                        tempDeviceId = deviceId;
-                    }
-                    var jsonContent = JsonConvert.SerializeObject(new {
-                        email = Email,
-                        password = Password,
-                        device = tempDeviceId,
-                        contact = contactId,
-                        message
-                    });
-                    Console.WriteLine(jsonContent);
-                    var response = await MakeRequestAsync(client, _sendMessageUrl, "post", jsonContent);
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine(responseContent);
-                    if (response.IsSuccessStatusCode) {
-                        JObject jObject = JObject.Parse(responseContent);
-                        if (jObject["result"]["fails"].HasValues) {
-                            if (jObject["result"]["fails"][0]["errors"]["device"].HasValues && jObject["result"]["fails"][0]["errors"]["contact"].HasValues) {
-                                throw new SmsGatewayException((string) jObject["result"]["fails"][0]["errors"]["device"] + "\n" +
-                                    (string) jObject["result"]["fails"][0]["errors"]["contact"]);
-                            } else if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
-                                throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"]);
-                            } else if (jObject["result"]["fails"][0]["errors"]["contact"].HasValues) {
-                                throw new ContactException((string) jObject["result"]["fails"][0]["errors"]["contact"]);
-                            }
-                        } else {
-                            sentMessage = jObject["result"]["success"][0].ToObject<Message>();
-                        }
-                    }
-                }
-            } catch (HttpRequestException e) {
-                Console.WriteLine(e.ToString());
-            } catch (JsonException e) {
-                Console.WriteLine(e.ToString());
-            }
-            return sentMessage;
+            return await SendMessageAsync(message, contactId, MessageType.ToContact, deviceId);
         }
 
         public Message SendMessageToContact(string contactId, string message, string deviceId = null) {
@@ -635,16 +514,98 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return sentMessage;
         }
 
+        private async Task<Message> SendMessageAsync(string message, string recipient, MessageType messageType, string deviceId = null) {
+            IEnumerable<string> recipients = new List<string>() { recipient };
+            var result = await SendMessageAsync(message, recipients, messageType, deviceId);
+            return result.FirstOrDefault();
+        }
+        private async Task<IEnumerable<Message>> SendMessageAsync(string message, IEnumerable<string> recipients, MessageType messageType, string deviceId = null) {
+            List<Message> sentMessage = null;
+            try {
+                using (var client = new HttpClient()) {
+                    string tempDeviceId = String.Empty;
+                    if (deviceId == null) {
+
+                        var device = await GetLastSeenDeviceAsync();
+                        tempDeviceId = device.Id.ToString();
+                    } else {
+                        tempDeviceId = deviceId;
+                    }
+
+                    var jsonContent = CreateJsonMessage(recipients, message, tempDeviceId, messageType);
+
+                    var response = await MakeRequestAsync(client, _sendMessageUrl, OperationType.POST, jsonContent);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    if (response.IsSuccessStatusCode) {
+                        sentMessage = CreateResult(responseContent).ToList();
+                    }
+                }
+            } catch (HttpRequestException e) {
+                Console.WriteLine(e.ToString());
+            } catch (JsonException e) {
+                Console.WriteLine(e.ToString());
+            }
+            return sentMessage;
+        }
+        private IEnumerable<Message> CreateResult(string responseContent) {
+            JObject jObject = JObject.Parse(responseContent);
+            if (jObject["result"]["fails"].HasValues) {
+                if (jObject["result"]["fails"][0]["errors"]["device"] != null && jObject["result"]["fails"][0]["errors"]["contact"] != null) {
+                    throw new SmsGatewayException((string) jObject["result"]["fails"][0]["errors"]["device"] + "\n" +
+                                                  (string) jObject["result"]["fails"][0]["errors"]["contact"]);
+                }
+                if (jObject["result"]["fails"][0]["errors"]["device"] != null) {
+                    throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"][0]);
+                }
+                if (jObject["result"]["fails"][0]["errors"]["contact"] != null) {
+                    throw new ContactException((string) jObject["result"]["fails"][0]["errors"]["contact"]);
+                }
+            }
+            if (jObject["errors"] != null) {
+                if (jObject["errors"]["login"] != null) {
+                    throw new AuthenticationException((string) jObject["errors"]["login"]);
+                }
+            }
+            if (jObject["result"]["fails"].HasValues) {
+                if (jObject["result"]["fails"][0]["errors"]["device"].HasValues) {
+                    throw new DeviceException((string) jObject["result"]["fails"][0]["errors"]["device"]);
+                }
+            }
+            return jObject["result"]["success"].ToObject<List<Message>>();
+        }
+
+        private string CreateJsonMessage(IEnumerable<string> recipients, string message, string deviceId, MessageType messageType) {
+            switch (messageType) {
+                case MessageType.ToNumber:
+                    return JsonConvert.SerializeObject(new {
+                        email = Email,
+                        password = Password,
+                        device = deviceId,
+                        number = recipients,
+                        message
+                    });
+                case MessageType.ToContact:
+                    return JsonConvert.SerializeObject(new {
+                        email = Email,
+                        password = Password,
+                        device = deviceId,
+                        contact = recipients,
+                        message
+                    });
+            }
+            throw new ArgumentException("Operation type is not defined.");
+        }
+
         public async Task<PaginingList<Contact>> GetContactsAsync(int page = 1) {
             PaginingList<Contact> contacts = null;
             try {
                 using (var client = new HttpClient()) {
                     var response = await MakeRequestAsync(client, String.Format(_contactsUrl, Email, Password, page),
-                        "get");
+                        OperationType.GET);
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode) {
-                        //Console.WriteLine(responseContent);
                         JObject jObject = JObject.Parse(responseContent);
                         JsonSerializer serializer = new JsonSerializer();
                         serializer.Converters.Add(new PaginingListConverter<Contact>());
@@ -684,13 +645,13 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             return contacts;
         }
 
-        private async Task<HttpResponseMessage> MakeRequestAsync(HttpClient client, string url, string httpMethod, string body = null) {
+        private async Task<HttpResponseMessage> MakeRequestAsync(HttpClient client, string url, OperationType type, string body = null) {
             BaseConfigurationHttpClient(client);
-            if (httpMethod.ToLowerInvariant() == "get") {
+            if (type == OperationType.GET) {
                 var response = await client.GetAsync(url);
                 return response;
 
-            } else if (httpMethod.ToLowerInvariant() == "post") {
+            } else if (type == OperationType.POST) {
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
                 if (body != null) {
                     request.Content = new StringContent(body, Encoding.UTF8, "application/json");

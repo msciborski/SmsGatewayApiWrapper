@@ -20,8 +20,8 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
             //await GetMessage();
             //await SendMessage();
             //await GetContacts();
-            //await SendMessageToContact();
-            await SendMessageToManyNumbers();
+            await SendMessageToContact();
+            //await SendMessageToManyNumbers();
             Console.ReadLine();
         }
         static async Task GetDevicesTest() {
@@ -44,15 +44,23 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
         static async Task SendMessageToContact() {
             var message = "test, test";
             var id = "10520922";
-            await smsGateway.SendMessageToContactAsync(id, message);
+            try {
+                var m = await smsGateway.SendMessageToContactAsync(id, message);
+                Console.WriteLine(m.Contact.Name);
+            } catch (Exception e) {
+                Console.WriteLine(e);
+            }
         }
         static async Task SendMessageToManyNumbers() {
             var message = "test, test";
-            string[] numbers = new[] {"780273188", "515054859"};
-            var messages = await smsGateway.SendMessageToMany(numbers, message, "0");
-
-            foreach (var message1 in messages) {
-                Console.WriteLine(message1.Id);
+            string[] numbers = new[] { "780273188", "515054859" };
+            try {
+                var messages = await smsGateway.SendMessageToManyAsync(numbers, message);
+                foreach (var message1 in messages) {
+                    Console.WriteLine(message1.Id);
+                }
+            }catch(Exception e) {
+                Console.WriteLine(e.Message);
             }
         }
         static async Task GetMessage() {
@@ -63,7 +71,8 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
             string number = "48515054859";
             string messageText = "Test, test";
             try {
-                var message = await smsGateway.SendMessageAsync(number, messageText,"000000");
+                var message = await smsGateway.SendMessageAsync(number, messageText);
+                Console.WriteLine("{0} {1}", message.Id, message.MessageContent);
             } catch (Exception e) {
                 Console.WriteLine(e.ToString());
             }
