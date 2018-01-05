@@ -18,55 +18,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
     /// <summary>
     /// <c>SmsGateway</c> is a class, which wraps SmsGateway API and provides you flexible and simple methods for using this API.
     /// </summary>
-    public class SmsGateway {
-        public enum OperationType {
-            GET,
-            POST
-        }
-        public enum MessageType {
-            ToNumber,
-            ToContact
-        }
-
-        /// <summary>
-        /// Base url for API
-        /// </summary>
-        private readonly string _baseUrl = "http://smsgateway.me/api/v3/";
-        /// <summary>
-        /// Url for fetching devices
-        /// </summary>
-        private readonly string _devicesUrl = "devices?email={0}&password={1}&page={2}";
-        /// <summary>
-        /// Url for fetching single device
-        /// </summary>
-        private readonly string _deviceUrl = "devices/view/{0}?email={1}&password={2}";
-        /// <summary>
-        /// Url for fetching whole messages.
-        /// </summary>
-        private readonly string _messagesUrl = "messages?email={0}&password={1}";
-        /// <summary>
-        /// Url for fething 
-        /// </summary>
-        private readonly string _messageUrl = "messages/view/{0}?email={1}&password={2}";
-        /// <summary>
-        /// Url for sending messages
-        /// </summary>
-        private readonly string _sendMessageUrl = "messages/send";
-
-        private readonly string _contactsUrl = "contacts?email={0}&password={1}&page={2}";
-
-        /// <summary>
-        /// Field, which holds TimeStamp for refreshing last seen device
-        /// </summary>
-        private static readonly TimeSpan lastSeenDeviceDuration = new TimeSpan(0, 10, 0);
-        /// <summary>
-        /// Fields for storing last seen device
-        /// </summary>
-        private Device storedLastSeenDevice = null;
-        /// <summary>
-        /// DateTime of device, which was fetched(marked as last seen)
-        /// </summary>
-        private DateTime storedLastSeenDeviceTime = DateTime.MinValue;
+    public class SmsGateway : SmsGatewayAbstract {
 
         /// <summary>
         /// Contains email for your account on site
