@@ -48,7 +48,7 @@
     <Compile Include="Models\PaginingList.cs" />
     <Compile Include="Models\Message.cs" />
     <Compile Include="Models\PaginingInformation.cs" />
-    <Compile Include="Models\SmsGatewayAbstract.cs" />
+    <Compile Include="SmsGatewayAbstract.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SmsGateway.cs" />
     <Compile Include="Utilities\Converters\DateTimeConverter.cs" />

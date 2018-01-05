@@ -20,15 +20,6 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
     /// </summary>
     public class SmsGateway : SmsGatewayAbstract {
 
-        /// <summary>
-        /// Contains email for your account on site
-        /// </summary>
-        public string Email { get; private set; }
-
-        /// <summary>
-        /// Contains password for your account on site
-        /// </summary>
-        public string Password { get; private set; }
 
         /// <summary>
         ///     Initializing a new instance of <c>SmsGateway</c>
@@ -41,9 +32,9 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// </example>
         /// <param name="email">Email address for your account on https://smsgateway.me </param>
         /// <param name="password">Passwor for your account on https://smsgateway.me </param>
-        public SmsGateway(string email, string password) {
-            Email = email;
-            Password = password;
+        public SmsGateway(string email, string password) 
+            : base(email, password) {
+
         }
 
         /// <summary>
@@ -595,32 +586,6 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             }
 
             return contacts;
-        }
-
-        private async Task<HttpResponseMessage> MakeRequestAsync(HttpClient client, string url, OperationType type, string body = null) {
-            BaseConfigurationHttpClient(client);
-            if (type == OperationType.GET) {
-                var response = await client.GetAsync(url);
-                return response;
-
-            } else if (type == OperationType.POST) {
-                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
-                if (body != null) {
-                    request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-                }
-                var response = await client.SendAsync(request);
-                return response;
-            }
-
-            throw new ArgumentException("Provided wrong httpMethod.");
-
-        }
-
-        private void BaseConfigurationHttpClient(HttpClient client) {
-            client.BaseAddress = new Uri(_baseUrl);
-            client.DefaultRequestHeaders.Clear();
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
         }
     }
 }
