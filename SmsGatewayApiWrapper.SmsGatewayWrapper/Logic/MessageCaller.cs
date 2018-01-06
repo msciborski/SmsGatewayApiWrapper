@@ -158,22 +158,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// <param name="deviceId"></param>
         /// <returns></returns>
         public Message SendMessage(string number, string message, string deviceId = null) {
-            Message sentMessage = null;
-
-            var task = Task.Run(async () => {
-                sentMessage = await SendMessageAsync(number, message, deviceId);
-            });
-
-            while (!task.IsCompleted) {
-                System.Threading.Thread.Yield();
-            }
-
-            if (task.IsFaulted) {
-                throw task.Exception;
-            } else if (task.IsCanceled) {
-                throw new Exception("Timeout.");
-            }
-            return sentMessage;
+            return SendMessage(message, number, MessageType.ToNumber, deviceId);
         }
 
         /// <summary>
@@ -194,31 +179,31 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         }
 
         public IEnumerable<Message> SendMessageToMany(IEnumerable<string> numbers, string message, string deviceId = null) {
-            IEnumerable<Message> messages = null;
-            var task = Task.Run(async () => {
-                messages = await SendMessageToManyAsync(numbers, message, deviceId);
-            });
-
-            while (!task.IsCompleted) {
-                System.Threading.Thread.Yield();
-            }
-
-            if (task.IsFaulted) {
-                throw task.Exception;
-            } else if (task.IsCanceled) {
-                throw new Exception("Timeout.");
-            }
-            return messages;
+            return SendMessage(message, numbers, MessageType.ToNumber, deviceId);
         }
         public async Task<IEnumerable<Message>> SendMessageToManyAsync(IEnumerable<string> numbers, string message, string deviceId = null) {
             return await SendMessageAsync(message, numbers, MessageType.ToNumber, deviceId);
         }
 
         public Message SendMessageToContact(string contactId, string message, string deviceId = null) {
-            Message sentMessage = null;
+            return SendMessage(message, contactId, deviceId);
+        }
+        public async Task<Message> SendMessageToContactAsync(string contactId, string message, string deviceId = null) {
+            return await SendMessageAsync(message, contactId, MessageType.ToContact, deviceId);
+        }
 
+        public IEnumerable<Message> SendMessageToManyContacts(IEnumerable<string> contactIds, string message, string deviceId = null) {
+            return SendMessage(message, contactIds, MessageType.ToContact, deviceId);
+        }
+        public async Task<IEnumerable<Message>> SendMessageToManyContactsAsync(IEnumerable<string> contactIds, string message, string deviceId = null) {
+            return await SendMessageAsync(message, contactIds, MessageType.ToContact, deviceId);
+        }
+
+
+        private Message SendMessage(string message, string recipient, MessageType messageType, string deviceId = null) {
+            Message result = null;
             var task = Task.Run(async () => {
-                sentMessage = await SendMessageToContactAsync(contactId, message, deviceId);
+                result = await SendMessageAsync(message, recipient, messageType, deviceId);
             });
 
             while (!task.IsCompleted) {
@@ -230,19 +215,30 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
             } else if (task.IsCanceled) {
                 throw new Exception("Timeout.");
             }
-
-            return sentMessage;
+            return result;
         }
-        public async Task<Message> SendMessageToContactAsync(string contactId, string message, string deviceId = null) {
-            return await SendMessageAsync(message, contactId, MessageType.ToContact, deviceId);
-        }
-
-
-
         private async Task<Message> SendMessageAsync(string message, string recipient, MessageType messageType, string deviceId = null) {
             IEnumerable<string> recipients = new List<string>() { recipient };
             var result = await SendMessageAsync(message, recipients, messageType, deviceId);
             return result.FirstOrDefault();
+        }
+
+        private IEnumerable<Message> SendMessage(string message, IEnumerable<string> recipients, MessageType messageType, string deviceId = null) {
+            IEnumerable<Message> result = null;
+            var task = Task.Run(async () => {
+                result = await SendMessageAsync(message, recipients, messageType, deviceId);
+            });
+
+            while (!task.IsCompleted) {
+                System.Threading.Thread.Yield();
+            }
+
+            if (task.IsFaulted) {
+                throw task.Exception;
+            } else if (task.IsCanceled) {
+                throw new Exception("Timeout.");
+            }
+            return result;
         }
         private async Task<IEnumerable<Message>> SendMessageAsync(string message, IEnumerable<string> recipients, MessageType messageType, string deviceId = null) {
             List<Message> sentMessage = null;

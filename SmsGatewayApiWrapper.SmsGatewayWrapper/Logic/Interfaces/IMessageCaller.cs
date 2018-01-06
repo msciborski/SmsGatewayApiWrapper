@@ -23,5 +23,11 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
 
         Message SendMessageToContact(string contactId, string message, string deviceId = null);
         Task<Message> SendMessageToContactAsync(string contactId, string message, string deviceId = null);
+
+        IEnumerable<Message> SendMessageToManyContacts(IEnumerable<string> contactIds, string message,
+            string deviceId = null);
+
+        Task<IEnumerable<Message>> SendMessageToManyContactsAsync(IEnumerable<string> contactIds, string message,
+            string deviceId = null);
     }
 }
