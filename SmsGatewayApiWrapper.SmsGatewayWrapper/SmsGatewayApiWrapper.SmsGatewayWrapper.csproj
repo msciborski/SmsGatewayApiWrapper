@@ -43,6 +43,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DeviceCaller.cs" />
+    <Compile Include="IDeviceCaller.cs" />
+    <Compile Include="MessageCaller.cs" />
     <Compile Include="Models\Contact.cs" />
     <Compile Include="Models\Device.cs" />
     <Compile Include="Models\PaginingList.cs" />

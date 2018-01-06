@@ -29,10 +29,6 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         protected readonly string _sendMessageUrl = "messages/send";
         protected readonly string _contactsUrl = "contacts?email={0}&password={1}&page={2}";
 
-        protected static readonly TimeSpan lastSeenDeviceDuration = new TimeSpan(0, 10, 0);
-        protected Device storedLastSeenDevice = null;
-        protected DateTime storedLastSeenDeviceTime = DateTime.MinValue;
-
         internal SmsGatewayAbstract(string email, string password) {
             this.Email = email;
             this.Password = password;

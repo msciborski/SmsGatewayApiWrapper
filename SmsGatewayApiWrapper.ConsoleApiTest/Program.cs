@@ -12,19 +12,40 @@ namespace SmsGatewayApiWrapper.ConsoleApiTest {
         static async Task Main(string[] args) {
             var wrongEmail = "test@gmail.com";
             smsGateway = new SmsGateway(email, password);
+            //await GetDevicesTest();
+            //await GetDeviceTest();
+            await GetLastSeenDeviceTest();
             //await GetMessages();
             //await GetMessage();
             //await SendMessage();
             //await GetContacts();
-            await SendMessageToContact();
+            //await SendMessageToContact();
             //await SendMessageToManyNumbers();
             Console.ReadLine();
         }
         static async Task GetDevicesTest() {
-            var paginingDevices = await smsGateway.GetDevicesAsync();
+
+            var paginingDevices = await smsGateway.Device.GetDevicesAsync();
 
             foreach (var device in paginingDevices) {
                 Console.WriteLine(device.Id);
+            }
+        }
+        static async Task GetDeviceTest() {
+            try {
+                var device = await smsGateway.Device.GetDeviceAsync(69888);
+                Console.WriteLine(device.Id);
+            }catch(Exception e) {
+                Console.WriteLine(e.Message);
+            }
+
+        }
+        static async Task GetLastSeenDeviceTest() {
+            try {
+                var device = await smsGateway.Device.GetLastSeenDeviceAsync();
+                Console.WriteLine(device.Id);
+            }catch(Exception e) {
+                Console.WriteLine(e.Message);
             }
         }
         static async Task GetMessages() {

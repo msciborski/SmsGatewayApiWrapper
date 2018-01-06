@@ -20,7 +20,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
     /// </summary>
     public class SmsGateway : SmsGatewayAbstract {
 
-
+        public IDeviceCaller Device { get; private set; }
         /// <summary>
         ///     Initializing a new instance of <c>SmsGateway</c>
         /// </summary>
@@ -34,210 +34,9 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
         /// <param name="password">Passwor for your account on https://smsgateway.me </param>
         public SmsGateway(string email, string password) 
             : base(email, password) {
-
+            Device = new DeviceCaller(email, password);
         }
 
-        /// <summary>
-        /// Get all devices from API and select last seen device and return it. Method looking for newest device every 10 minutes. 
-        /// This is async implementation.
-        /// </summary>
-        /// <exception cref="DeviceException">
-        ///     If there is no avaiable device
-        /// </exception>
-        /// <exception cref="AuthenticationException">
-        ///     If you provide wrong credentials.
-        /// </exception>
-        /// <returns><see cref="Device"/>
-        ///     Return Task.
-        /// </returns>
-        public async Task<Device> GetLastSeenDeviceAsync() {
-            if (( DateTime.Now - storedLastSeenDeviceTime ) < lastSeenDeviceDuration) {
-                return storedLastSeenDevice;
-            }
-
-            try {
-                var devices = await GetDevicesAsync();
-                var lastSeenDevice = devices.OrderBy(d => d.LastSeen).FirstOrDefault();
-
-                if (lastSeenDevice == null) {
-                    throw new DeviceException("No device is avaiable.");
-                }
-                storedLastSeenDevice = lastSeenDevice;
-                storedLastSeenDeviceTime = DateTime.Now; ;
-            } catch (AuthenticationException e) {
-                Console.WriteLine(e.ToString());
-                throw;
-            }
-
-            return storedLastSeenDevice;
-        }
-
-        /// <summary>
-        /// Exactly like <paramref cref="GetLastSeenDeviceAsync"/>, but synchronous.
-        /// </summary>
-        /// <exception cref="DeviceException">
-        ///     If there is no avaiable device
-        /// </exception>
-        /// <exception cref="AuthenticationException">
-        ///     If you provide wrong credentials.
-        /// </exception>
-        /// <returns><paramref cref="Device"/></returns>
-        public Device GetLastSeenDevice() {
-            var task = Task.Run(async () => {
-                storedLastSeenDevice = await GetLastSeenDeviceAsync();
-            });
-
-            while (!task.IsCompleted) {
-                System.Threading.Thread.Yield();
-            }
-
-            if (task.IsFaulted) {
-                throw task.Exception;
-            } else if (task.IsCanceled) {
-                throw new Exception("Timeout.");
-            }
-            return storedLastSeenDevice;
-        }
-
-        /// <summary>
-        /// Method <c>GetDevicesAsync</c> returns list of devices with pagination informations. It's asynchronous method.
-        /// </summary>
-        /// <param name="page"><see cref="int"> representing page. Default 1.</see>/></param>
-        /// <exception cref="AuthenticationException">
-        ///     If you provide wrong credentials for your account.
-        /// </exception>
-        /// <returns>
-        ///     <see cref="Task{PaginingList{Device}}"/> 
-        /// </returns>
-        public async Task<PaginingList<Device>> GetDevicesAsync(int page = 1) {
-            PaginingList<Device> devices = null;
-            try {
-                using (var client = new HttpClient()) {
-                    var response = await MakeRequestAsync(client, String.Format(_devicesUrl, Email, Password, page), OperationType.GET);
-                    var responseContent = await response.Content.ReadAsStringAsync();
-
-                    if (response.IsSuccessStatusCode) {
-                        JObject jObject = JObject.Parse(responseContent);
-                        JsonSerializer serializer = new JsonSerializer();
-                        serializer.Converters.Add(new PaginingListConverter<Device>());
-                        devices = jObject.ToObject<PaginingList<Device>>(serializer);
-                    } else {
-                        JObject jObject = JObject.Parse(responseContent);
-                        var error = jObject["errors"].Select(t => (string) t).FirstOrDefault();
-                        throw new AuthenticationException(error);
-                    }
-                }
-            } catch (HttpRequestException e) {
-                Console.WriteLine("Problem with connection.");
-                Console.WriteLine(e.ToString());
-            } catch (JsonReaderException e) {
-                Console.WriteLine(e.ToString());
-            } catch (ArgumentException e) {
-                Console.WriteLine(e.ToString());
-            }
-            return devices;
-        }
-
-        /// <summary>
-        /// Eactly like <see cref="GetDevicesAsync"/>, but synchronous.
-        /// </summary>
-        /// <exception cref="AuthenticationException">
-        ///     If you provide wrong credentials for your account.
-        /// </exception>
-        /// <returns><see cref="PaginingList{Device}"/></returns>
-        public PaginingList<Device> GetDevices() {
-            PaginingList<Device> devices = null;
-
-            var task = Task.Run(async () => {
-                devices = await GetDevicesAsync();
-            });
-
-            while (!task.IsCompleted) {
-                System.Threading.Thread.Yield();
-            }
-
-            if (task.IsFaulted) {
-                throw task.Exception;
-            }
-
-            if (task.IsCanceled) {
-                throw new Exception("Timeout obtaining device information.");
-            }
-
-            return devices;
-
-        }
-        /// <summary>
-        /// Method <c>GetDeviceAsync</c> returns device for provided id. It's asynchronous method.
-        /// </summary>
-        /// <param name="id"><see cref="int"/> Id of device.</param>
-        /// <exception cref="AuthenticationException">
-        /// It's thrown when you provided wrong credentials.
-        /// </exception>
-        /// <exception cref="DeviceException">
-        /// It's thrown when you provided ID of device, which dosen't exist.
-        /// </exception>
-        /// <returns><see cref="Task{Device}"/></returns>
-        public async Task<Device> GetDeviceAsync(int id) {
-            Device device = null;
-            try {
-                using (var client = new HttpClient()) {
-                    var response =
-                        await MakeRequestAsync(client, String.Format(_deviceUrl, Email, Password, id), OperationType.GET);
-                    var responseContent = await response.Content.ReadAsStringAsync();
-
-                    if (response.IsSuccessStatusCode) {
-                        JObject jObject = JObject.Parse(responseContent);
-                        device = jObject["result"].ToObject<Device>();
-                    } else {
-                        JObject jObject = JObject.Parse(responseContent);
-                        if (jObject["errors"]["login"] != null) {
-                            throw new AuthenticationException((string) jObject["errors"]["login"]);
-                        }
-                        if (jObject["errors"]["id"] != null) {
-                            throw new DeviceException((string) jObject["errors"]["id"]);
-                        }
-                    }
-
-                }
-            } catch (HttpRequestException e) {
-                Console.WriteLine(e.ToString());
-            } catch (JsonException e) {
-                Console.WriteLine(e.ToString());
-            } catch (ArgumentException e) {
-                Console.WriteLine(e.ToString());
-            }
-            return device;
-        }
-        /// <summary>
-        /// Exactly like <see cref="GetDeviceAsync"/>, but synchronously.
-        /// </summary>
-        /// <param name="id"></param>
-        /// <exception cref="AuthenticationException">
-        /// It's thrown when you provided wrong credentials.
-        /// </exception>
-        /// <exception cref="DeviceException">
-        /// It's thrown when you provided ID of device, which dosen't exist.
-        /// </exception>
-        /// <returns><see cref="Device"/></returns>
-        public Device GetDevice(int id) {
-            Device device = null;
-
-            var task = Task.Run(async () => {
-                device = await GetDeviceAsync(id);
-            });
-
-            while (!task.IsCompleted) {
-                System.Threading.Thread.Yield();
-            }
-
-            if (task.IsFaulted) {
-                throw task.Exception;
-            } else if (task.IsCanceled) {
-                throw new Exception("Timeout.");
-            }
-            return device;
-        }
 
         /*
          * Documentation don't respond to the result of query. In documentation /messages should return json with messages
@@ -469,7 +268,7 @@ namespace SmsGatewayApiWrapper.SmsGatewayWrapper {
                     string tempDeviceId = String.Empty;
                     if (deviceId == null) {
 
-                        var device = await GetLastSeenDeviceAsync();
+                        var device = await Device.GetLastSeenDeviceAsync();
                         tempDeviceId = device.Id.ToString();
                     } else {
                         tempDeviceId = deviceId;
